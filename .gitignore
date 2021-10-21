@@ -1,0 +1,7 @@
+.vscode
+dev_ws/build
+log
+*.so
+install
+/launch
+__pycache__
