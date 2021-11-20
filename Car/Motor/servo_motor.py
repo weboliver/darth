@@ -5,13 +5,17 @@ from Motor.motor import MotorController
 
 class ServoMotorController(MotorController):
 
+    __straight = 120
+
     def __init__(self, default_speed: int = 50, max_speed: int = None):
         super().__init__(default_speed, max_speed)
+        print("Init Servo Kit")
         self.__servo_kit = ServoKit(channels=16)
-        self.__servo_kit.servo[0].angle=120
-        self.__left_max = 95
+        print("Servo Kit Initialized")
+        self.__servo_kit.servo[0].angle=ServoMotorController.__straight
+        self.__left_max = 90
         self.__right_max = 150
-        self.__straight = 115
+        self.__straight = ServoMotorController.__straight
     
     def getMaxLeft(self):
         return self.__left_max
@@ -22,7 +26,7 @@ class ServoMotorController(MotorController):
     def getStraight(self):
         return self.__straight
 
-    def car_steering(self, direction: int = 115):
+    def car_steering(self, direction: int = 120):
         try:
             if (direction > self.getMaxRight()):
                 direction = self.getMaxRight()
@@ -34,13 +38,10 @@ class ServoMotorController(MotorController):
             raise
 
     def leftsteering(self):
-        print("event left")
         self.car_steering(self.getMaxLeft())
 
     def rightsteering(self):
-        print("event right")
         self.car_steering(self.getMaxRight())
 
     def straightsteering(self):
-        print("event straight")
         self.car_steering(self.getStraight())

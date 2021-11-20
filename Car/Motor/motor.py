@@ -10,14 +10,26 @@ class MotorController:
     def __init__(self, default_speed: int = 50, max_speed: int = None):
         self._motors = {}
         self._default_speed = default_speed
+        self.set_current_speed(0)
+
         if self._max_speed is None:
             self._max_speed = MotorController._max_speed
         else:
             self._max_speed = max_speed
         GPIO.setwarnings(False)
+        self._started = False
+
+    def is_stopped(self):
+        return self._started is False
 
     def get_default_speed(self):
         return self._default_speed
+
+    def get_current_speed(self):
+        return self._current_speed
+
+    def set_current_speed(self, speed):
+        self._current_speed = speed
 
     def get_max_speed(self):
         return self._max_speed
@@ -28,6 +40,7 @@ class MotorController:
 
     def add_motor(self, name: str, IN1: str, IN2: str, ENPIN: str, frequency: int = None):
         self._motors[name] = {}
+        self._motors[name]["initialized"] = False
         if frequency is None:
             frequency = MotorController.get_default_frequency()
         self._motors[name]["IN1"] = IN1
@@ -47,11 +60,14 @@ class MotorController:
         GPIO.setmode(GPIO.TEGRA_SOC)
         for motor in self.get_motors():
             mo = self._motors[motor]
-            GPIO.setup(mo["IN1"], GPIO.OUT)
-            GPIO.setup(mo["IN2"], GPIO.OUT)
-            GPIO.setup(mo["ENPIN"], GPIO.OUT)
-            mo["MotorControl"] = GPIO.PWM(mo["ENPIN"], mo["PWM"])
-            mo["MotorControl"].start(0)
+            if mo["initialized"] is False:
+                GPIO.setup(mo["IN1"], GPIO.OUT)
+                GPIO.setup(mo["IN2"], GPIO.OUT)
+                GPIO.setup(mo["ENPIN"], GPIO.OUT)
+                mo["MotorControl"] = GPIO.PWM(mo["ENPIN"], mo["PWM"])
+                mo["MotorControl"].start(0)
+                mo["initialized"] = True
+        self._started = True
 
     def car_move_direction(self, motors, speed, forwarddirection: bool, duration: int = 0):
         try:
@@ -68,11 +84,13 @@ class MotorController:
     def car_move_forwards(self, speed: int = None, duration: int = 0):
         if speed is None:
             speed = self.get_default_speed()
+        self._current_speed = speed
         self.car_move_direction(self.get_motors(), speed, True, duration)
 
     def car_move_backwards(self, speed: int = None, duration: int = 0):
         if speed is None:
             speed = self.get_default_speed()
+        self._current_speed = speed
         self.car_move_direction(self.get_motors(), speed, False, duration)
     
     def get_motor_control(self, name):
@@ -84,7 +102,7 @@ class MotorController:
     def get_motor_speed(self, name):
         return self._motors[name]["CURRENTSPEED"]
 
-    def set_motor_control_speed(self, name, speed):
+    def set_motor_control_speed(self, name, speed: int = 0):
         control = self.get_motor_control(name)
         if speed > self.get_max_speed():
             speed = self.get_max_speed()
@@ -100,11 +118,13 @@ class MotorController:
             GPIO.output(motor["IN1"], False)
             GPIO.output(motor["IN2"], True)
 
-    def accelerate_car(self, acceleration: int = 1):
+    def accelerate(self, acceleration: int = 1):
+        self._current_speed = self._current_speed + acceleration
         for motor in self.get_motors():
             self.accelerate_motor(motor, acceleration)
 
     def brake_car(self, brake: int = 1):
+        self._current_speed = self._current_speed - brake
         for motor in self.get_motors():
             self.brake_motor(motor, brake)
 
@@ -124,8 +144,9 @@ class MotorController:
 
     def stop(self):
         motors = self.get_motors()
+        self._current_speed = 0
         for motor_name in motors:
             self.get_motor_control(motor_name).ChangeDutyCycle(0)
 
     def stop_motor(self):
-        GPIO.cleanup()
+        self._started = False
